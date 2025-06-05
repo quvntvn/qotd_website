@@ -2,86 +2,57 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import "./App.css";
 
+const API_BASE = "https://qotd-api-ne8l.onrender.com/api";
+
 function App() {
   const [quote, setQuote] = useState({
     citation: "",
     auteur: "",
-    date_creation: "",
+    date_creation: null,
   });
   const [dailyQuote, setDailyQuote] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [loadingText, setLoadingText] = useState(".");
 
-  const fetchDailyQuote = async () => {
+  /* ---------------- helpers ---------------- */
+  const fetchQuote = async (endpoint, rememberAsDaily = false) => {
     try {
       setIsLoading(true);
-      const response = await axios.get(
-        "https://qotd-api.herokuapp.com/api/daily_quote"
-      );
-      setQuote(response.data);
-      setDailyQuote(response.data);
-    } catch (error) {
-      console.error(
-        "Erreur lors de la récupération de la citation du jour:",
-        error
-      );
+      const { data } = await axios.get(`${API_BASE}${endpoint}`);
+      setQuote(data);
+      if (rememberAsDaily) setDailyQuote(data);
+    } catch (err) {
+      console.error("Erreur de récupération :", err);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchRandomQuote = async () => {
-    try {
-      setIsLoading(true);
-      const response = await axios.get(
-        "https://qotd-api.herokuapp.com/api/random_quote"
-      );
-      setQuote(response.data);
-    } catch (error) {
-      console.error(
-        "Erreur lors de la récupération de la citation aléatoire:",
-        error
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const fetchDailyQuote = () => fetchQuote("/daily_quote", true);
+  const fetchRandomQuote = () => fetchQuote("/random_quote");
+
+  const formatDate = (dateString) =>
+    dateString ? new Date(dateString).getFullYear() : "Date inconnue";
+
+  /* ---------------- effects ---------------- */
+  useEffect(fetchDailyQuote, []);
 
   useEffect(() => {
-    fetchDailyQuote();
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLoadingText((prevLoadingText) => {
-        if (prevLoadingText === ".") {
-          return "..";
-        } else {
-          return ".";
-        }
-      });
-    }, 150);
-
+    const interval = setInterval(
+      () => setLoadingText((prev) => (prev.length === 1 ? ".." : ".")),
+      150
+    );
     return () => clearInterval(interval);
   }, []);
 
+  /* ----------------------------------------- */
   const isNotDailyQuote = quote.id !== dailyQuote.id;
-
-  function getYear(dateString) {
-    const date = new Date(dateString);
-    return date.getFullYear();
-  }
 
   return (
     <div className="App">
       <header className="App-header">
-        <br />
-        <br />
-        <br />
-        <br />
-        <br />
-        <br />
         <h1>Citation du jour</h1>
+
         {isLoading ? (
           <>
             <p>{loadingText}</p>
@@ -92,9 +63,10 @@ function App() {
           <>
             <p>{quote.citation}</p>
             <p>{quote.auteur}</p>
-            <p>{getYear(quote.date_creation)}</p>
+            <p>{formatDate(quote.date_creation)}</p>
           </>
         )}
+
         <br />
         <button onClick={fetchRandomQuote}>Voir une autre citation</button>
         <br />
