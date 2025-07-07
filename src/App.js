@@ -105,6 +105,20 @@ function App() {
     }
   };
 
+  const disableNotifications = () => {
+    localStorage.removeItem("notifyDailyQuote");
+    setNotificationsEnabled(false);
+    const timer = notificationTimer.current;
+    if (timer.timeoutId) {
+      clearTimeout(timer.timeoutId);
+      timer.timeoutId = null;
+    }
+    if (timer.intervalId) {
+      clearInterval(timer.intervalId);
+      timer.intervalId = null;
+    }
+  };
+
   /* ----------------------------------------- */
   const isNotDailyQuote = quote.id !== dailyQuote.id;
 
@@ -134,13 +148,17 @@ function App() {
           <button onClick={fetchDailyQuote}>Citation du jour</button>
         )}
         <br />
-        {!notificationsEnabled && (
+        {!notificationsEnabled ? (
           <button onClick={enableNotifications}>
             Activer les notifications à 10h
           </button>
-        )}
-        {notificationsEnabled && (
-          <p>Notifications activées</p>
+        ) : (
+          <>
+            <p>Notifications activées</p>
+            <button onClick={disableNotifications}>
+              Désactiver les notifications
+            </button>
+          </>
         )}
       </header>
     </div>
