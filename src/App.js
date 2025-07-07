@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import "./App.css";
 
@@ -38,7 +38,7 @@ function App() {
   const formatDate = (dateString) =>
     dateString ? new Date(dateString).getFullYear() : "Date inconnue";
 
-  const scheduleNotifications = () => {
+  const scheduleNotifications = useCallback(() => {
     const showNotification = async () => {
       try {
         const { data } = await axios.get(`${API_BASE}/daily_quote`);
@@ -65,7 +65,7 @@ function App() {
         24 * 60 * 60 * 1000
       );
     }, computeDelay());
-  };
+  }, []);
 
   /* ---------------- effects ---------------- */
   useEffect(fetchDailyQuote, []);
@@ -79,12 +79,13 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const timer = notificationTimer.current;
     return () => {
-      if (notificationTimer.current.timeoutId) {
-        clearTimeout(notificationTimer.current.timeoutId);
+      if (timer.timeoutId) {
+        clearTimeout(timer.timeoutId);
       }
-      if (notificationTimer.current.intervalId) {
-        clearInterval(notificationTimer.current.intervalId);
+      if (timer.intervalId) {
+        clearInterval(timer.intervalId);
       }
     };
   }, []);
@@ -93,7 +94,7 @@ function App() {
     if (notificationsEnabled && Notification.permission === "granted") {
       scheduleNotifications();
     }
-  }, [notificationsEnabled]);
+  }, [notificationsEnabled, scheduleNotifications]);
 
   const enableNotifications = async () => {
     const permission = await Notification.requestPermission();
