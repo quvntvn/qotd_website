@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import "./App.css";
 
@@ -13,6 +13,10 @@ function App() {
   const [dailyQuote, setDailyQuote] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [loadingText, setLoadingText] = useState(".");
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    localStorage.getItem("notifyDailyQuote") === "true"
+  );
+  const notificationTimer = useRef({ timeoutId: null, intervalId: null });
 
   /* ---------------- helpers ---------------- */
   const fetchQuote = async (endpoint, rememberAsDaily = false) => {
@@ -34,6 +38,35 @@ function App() {
   const formatDate = (dateString) =>
     dateString ? new Date(dateString).getFullYear() : "Date inconnue";
 
+  const scheduleNotifications = () => {
+    const showNotification = async () => {
+      try {
+        const { data } = await axios.get(`${API_BASE}/daily_quote`);
+        const year = formatDate(data.date_creation);
+        const body = `${data.citation}\n${data.auteur}${year !== "Date inconnue" ? `\n${year}` : ""}`;
+        new Notification("Citation du jour", { body });
+      } catch (err) {
+        console.error("Erreur de notification :", err);
+      }
+    };
+
+    const computeDelay = () => {
+      const now = new Date();
+      const target = new Date();
+      target.setHours(10, 0, 0, 0);
+      if (target <= now) target.setDate(target.getDate() + 1);
+      return target - now;
+    };
+
+    notificationTimer.current.timeoutId = setTimeout(() => {
+      showNotification();
+      notificationTimer.current.intervalId = setInterval(
+        showNotification,
+        24 * 60 * 60 * 1000
+      );
+    }, computeDelay());
+  };
+
   /* ---------------- effects ---------------- */
   useEffect(fetchDailyQuote, []);
 
@@ -44,6 +77,32 @@ function App() {
     );
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    return () => {
+      if (notificationTimer.current.timeoutId) {
+        clearTimeout(notificationTimer.current.timeoutId);
+      }
+      if (notificationTimer.current.intervalId) {
+        clearInterval(notificationTimer.current.intervalId);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (notificationsEnabled && Notification.permission === "granted") {
+      scheduleNotifications();
+    }
+  }, [notificationsEnabled]);
+
+  const enableNotifications = async () => {
+    const permission = await Notification.requestPermission();
+    if (permission === "granted") {
+      localStorage.setItem("notifyDailyQuote", "true");
+      setNotificationsEnabled(true);
+      scheduleNotifications();
+    }
+  };
 
   /* ----------------------------------------- */
   const isNotDailyQuote = quote.id !== dailyQuote.id;
@@ -72,6 +131,15 @@ function App() {
         <br />
         {isNotDailyQuote && (
           <button onClick={fetchDailyQuote}>Citation du jour</button>
+        )}
+        <br />
+        {!notificationsEnabled && (
+          <button onClick={enableNotifications}>
+            Activer les notifications à 10h
+          </button>
+        )}
+        {notificationsEnabled && (
+          <p>Notifications activées</p>
         )}
       </header>
     </div>
